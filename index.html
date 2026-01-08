@@ -44,7 +44,32 @@ input,textarea{
   font-size:16px;
 }
 textarea{min-height:120px}
+
+input[type="range"]{
+  -webkit-appearance:none;
+  width:100%;
+  height:6px;
+  border-radius:999px;
+  background:rgba(255,255,255,.25);
+  outline:none;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:22px;height:22px;
+  border-radius:50%;
+  background:var(--accent);
+  cursor:pointer;
+  border:none;
+}
+.timeRow{
+  display:flex;
+  justify-content:space-between;
+  font-size:12px;
+  color:var(--muted);
+}
+
 canvas{width:100%;border-radius:18px}
+
 .btnbar{
   position:fixed;left:0;right:0;bottom:0;
   background:rgba(11,16,32,.8);
@@ -71,10 +96,23 @@ button{
   <div class="panel">
     <label>曲名</label>
     <input id="title" value="春雷">
+
     <label>アーティスト</label>
     <input id="artist" value="米津玄師">
+
     <label>ジャケ写</label>
     <input type="file" id="cover" accept="image/*">
+
+    <label>曲の長さ（秒）</label>
+    <input id="duration" type="number" value="206" min="1">
+
+    <label>再生位置</label>
+    <input id="pos" type="range" min="0" value="103">
+    <div class="timeRow">
+      <span id="currentTime">1:43</span>
+      <span id="totalTime">3:26</span>
+    </div>
+
     <label>歌詞 / メモ（任意）</label>
     <textarea id="lyrics">短いフレーズやメモ。</textarea>
   </div>
@@ -94,12 +132,31 @@ const cvs = document.getElementById("cvs");
 const ctx = cvs.getContext("2d");
 let coverImg=null;
 
+const posEl = document.getElementById("pos");
+const durEl = document.getElementById("duration");
+
+function fmt(sec){
+  sec=Math.max(0,Math.floor(sec));
+  return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
+}
+
 document.getElementById("cover").onchange=e=>{
   const f=e.target.files[0];
   if(!f)return;
   const img=new Image();
   img.onload=()=>{coverImg=img;render();}
   img.src=URL.createObjectURL(f);
+};
+
+durEl.oninput=()=>{
+  posEl.max=durEl.value;
+  document.getElementById("totalTime").textContent=fmt(durEl.value);
+  render();
+};
+
+posEl.oninput=()=>{
+  document.getElementById("currentTime").textContent=fmt(posEl.value);
+  render();
 };
 
 function roundRect(x,y,w,h,r){
@@ -120,21 +177,18 @@ function render(){
   const cardX=90, cardY=120;
   const cardW=cvs.width-180;
   const cardH=820;
+  const centerX=cardX+cardW/2;
 
-  // card
   ctx.fillStyle="rgba(15,15,20,.85)";
   roundRect(cardX,cardY,cardW,cardH,40);
   ctx.fill();
 
-  const centerX = cardX + cardW/2;
-
-  // cover (CENTERED)
   const coverSize=360;
   const cx=centerX-coverSize/2;
   const cy=cardY+60;
 
-  ctx.fillStyle="rgba(255,255,255,.08)";
   roundRect(cx,cy,coverSize,coverSize,24);
+  ctx.fillStyle="rgba(255,255,255,.08)";
   ctx.fill();
 
   if(coverImg){
@@ -145,7 +199,6 @@ function render(){
     ctx.restore();
   }
 
-  // text
   ctx.textAlign="center";
   ctx.fillStyle="#fff";
   ctx.font="bold 40px sans-serif";
@@ -154,17 +207,17 @@ function render(){
   ctx.fillStyle="#bbb";
   ctx.fillText(artist.value, centerX, cy+coverSize+110);
 
-  // progress bar (CENTERED)
   const barW=420;
   const barY=cy+coverSize+170;
-  ctx.fillStyle="rgba(255,255,255,.2)";
+  const ratio=posEl.value/durEl.value;
+
+  ctx.fillStyle="rgba(255,255,255,.25)";
   roundRect(centerX-barW/2,barY,barW,10,6);
   ctx.fill();
   ctx.fillStyle="#53f3a6";
-  roundRect(centerX-barW/2,barY,barW*0.5,10,6);
+  roundRect(centerX-barW/2,barY,barW*ratio,10,6);
   ctx.fill();
 
-  // play button (CENTERED)
   ctx.beginPath();
   ctx.arc(centerX,barY+60,34,0,Math.PI*2);
   ctx.fillStyle="#53f3a6";
@@ -177,20 +230,17 @@ function render(){
   ctx.closePath();
   ctx.fill();
 
-  // lyrics (optional)
   if(lyrics.value.trim()){
     ctx.fillStyle="#ddd";
     ctx.font="22px sans-serif";
     ctx.textAlign="left";
-    const lines=lyrics.value.split("\n");
     let y=cardY+cardH+40;
-    lines.forEach(l=>{
+    lyrics.value.split("\n").forEach(l=>{
       ctx.fillText(l,cardX+40,y);
       y+=32;
     });
   }
 
-  // acrylic frame + hole
   ctx.strokeStyle="rgba(255,255,255,.4)";
   ctx.lineWidth=6;
   roundRect(40,40,cvs.width-80,cvs.height-80,50);
@@ -209,6 +259,8 @@ function download(){
   a.click();
 }
 
+durEl.oninput();
+posEl.oninput();
 render();
 </script>
 </body>
