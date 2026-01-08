@@ -1,1037 +1,215 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Music Card Maker</title>
-  <meta name="theme-color" content="#0b1020">
-  <style>
-    :root{
-      --bg:#0b1020;
-      --ink:#e9ecff;
-      --muted:#aab2d5;
-      --accent:#53f3a6;
-      --shadow: 0 18px 60px rgba(0,0,0,.45);
-      --radius: 18px;
-      --pad: 14px;
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-top: env(safe-area-inset-top, 0px);
-    }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
-      color:var(--ink);
-      background:
-        radial-gradient(900px 650px at 20% 10%, rgba(83,243,166,.18), transparent 60%),
-        radial-gradient(900px 650px at 85% 30%, rgba(120,140,255,.18), transparent 60%),
-        var(--bg);
-      min-height: 100vh;
-      padding-bottom: calc(92px + var(--safe-bottom));
-      padding-top: var(--safe-top);
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Music Card Maker</title>
 
-    header{
-      position: sticky;
-      top: 0;
-      z-index: 5;
-      backdrop-filter: blur(10px);
-      background: rgba(11,16,32,.55);
-      border-bottom: 1px solid rgba(255,255,255,.07);
-    }
-    .headInner{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 12px 14px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
-    }
-    .brand{
-      display:flex; flex-direction:column; gap:2px;
-    }
-    .brand b{ font-size: 14px; letter-spacing:.02em; }
-    .brand span{ font-size: 11px; color: var(--muted); }
-    .status{ font-size: 12px; color: var(--muted); }
-
-    .wrap{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 14px;
-      display:grid;
-      gap: 14px;
-    }
-
-    .panel{
-      background: rgba(18,26,51,.55);
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(10px);
-      overflow:hidden;
-    }
-    .panelInner{ padding: var(--pad); }
-
-    .row{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      flex-wrap:wrap;
-    }
-    .grid{
-      display:grid;
-      gap: 10px;
-    }
-    @media(min-width: 860px){
-      .wrap{
-        grid-template-columns: 1.15fr .85fr;
-        align-items: start;
-      }
-      .previewCard{ position: sticky; top: 70px; }
-    }
-
-    label{
-      display:block;
-      font-size: 12px;
-      color: var(--muted);
-      margin: 0 0 6px;
-    }
-    input[type="text"], input[type="number"], textarea{
-      width: 100%;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      color: var(--ink);
-      border-radius: 14px;
-      padding: 12px 12px;
-      outline: none;
-      font-size: 16px; /* iOS zoom防止 */
-    }
-    textarea{
-      min-height: 140px;
-      resize: vertical;
-      line-height: 1.6;
-    }
-    input[type="file"]{
-      width:100%;
-      padding: 10px 0;
-      color: var(--muted);
-      font-size: 14px;
-    }
-    .hint{
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .seg{
-      display:flex;
-      gap: 8px;
-      flex-wrap:wrap;
-    }
-    .chip{
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      padding: 10px 12px;
-      border-radius: 999px;
-      color: var(--ink);
-      cursor:pointer;
-      user-select:none;
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing:.01em;
-      transition: transform .06s ease, background .2s ease, border-color .2s ease;
-      min-height: 40px; /* タップしやすく */
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-    }
-    .chip:active{ transform: translateY(1px); }
-    .chip.on{
-      background: rgba(83,243,166,.16);
-      border-color: rgba(83,243,166,.35);
-    }
-
-    canvas{
-      width:100%;
-      height:auto;
-      display:block;
-      background: rgba(0,0,0,.10);
-      border-top: 1px solid rgba(255,255,255,.06);
-    }
-
-    .bottomBar{
-      position: fixed;
-      left:0; right:0; bottom:0;
-      z-index: 10;
-      padding: 10px 14px calc(10px + var(--safe-bottom));
-      background: rgba(11,16,32,.78);
-      backdrop-filter: blur(12px);
-      border-top: 1px solid rgba(255,255,255,.10);
-    }
-    .barInner{
-      max-width: 980px;
-      margin: 0 auto;
-      display:grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 10px;
-    }
-    .btn{
-      cursor:pointer;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(83,243,166,.14);
-      color: var(--ink);
-      padding: 14px 12px;
-      border-radius: 16px;
-      font-weight: 900;
-      letter-spacing:.02em;
-      user-select:none;
-      min-height: 48px; /* タップしやすく */
-      font-size: 14px;
-    }
-    .btn.secondary{ background: rgba(255,255,255,.07); font-weight: 800; }
-    .btn.danger{ background: rgba(255,80,120,.14); }
-
-    .two{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-    }
-    @media(max-width: 420px){
-      .two{ grid-template-columns: 1fr; }
-      .barInner{ grid-template-columns: 1fr; }
-    }
-
-    .hidden { display:none !important; }
-  </style>
+<style>
+:root{
+  --bg:#0b1020;
+  --ink:#e9ecff;
+  --muted:#aab2d5;
+  --accent:#53f3a6;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
+  background:var(--bg);
+  color:var(--ink);
+  padding-bottom:90px;
+}
+header{
+  position:sticky;top:0;
+  background:rgba(11,16,32,.7);
+  backdrop-filter:blur(10px);
+  padding:12px 14px;
+  z-index:10;
+}
+.wrap{max-width:960px;margin:auto;padding:14px}
+.panel{
+  background:rgba(18,26,51,.55);
+  border-radius:18px;
+  padding:14px;
+  margin-bottom:14px;
+}
+label{font-size:12px;color:var(--muted)}
+input,textarea{
+  width:100%;padding:12px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:14px;
+  color:var(--ink);
+  font-size:16px;
+}
+textarea{min-height:120px}
+canvas{width:100%;border-radius:18px}
+.btnbar{
+  position:fixed;left:0;right:0;bottom:0;
+  background:rgba(11,16,32,.8);
+  backdrop-filter:blur(10px);
+  padding:10px;
+  display:flex;gap:10px;
+}
+button{
+  flex:1;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(83,243,166,.15);
+  color:var(--ink);
+  font-weight:800;
+}
+</style>
 </head>
-<body>
 
-<header>
-  <div class="headInner">
-    <div class="brand">
-      <b>🎧 Music Card Maker</b>
-      <span>再生画面＋ジャケ写＋（任意で歌詞）→ PNG</span>
-    </div>
-    <div class="status" id="status">cover: 未選択</div>
-  </div>
-</header>
+<body>
+<header>🎧 Music Card Maker</header>
 
 <div class="wrap">
-  <!-- Inputs -->
-  <section class="panel">
-    <div class="panelInner">
-      <div class="grid">
-        <div class="two">
-          <div>
-            <label>曲名</label>
-            <input id="title" type="text" placeholder="例：春雷" />
-          </div>
-          <div>
-            <label>アーティスト</label>
-            <input id="artist" type="text" placeholder="例：米津玄師" />
-          </div>
-        </div>
+  <div class="panel">
+    <label>曲名</label>
+    <input id="title" value="春雷">
+    <label>アーティスト</label>
+    <input id="artist" value="米津玄師">
+    <label>ジャケ写</label>
+    <input type="file" id="cover" accept="image/*">
+    <label>歌詞 / メモ（任意）</label>
+    <textarea id="lyrics">短いフレーズやメモ。</textarea>
+  </div>
 
-        <div>
-          <label>ジャケ写（画像）</label>
-          <input id="cover" type="file" accept="image/*" />
-          <div class="hint">※スクショでもOK。画像はブラウザ内だけで処理。</div>
-        </div>
-
-        <div class="two">
-          <div>
-            <label>テンプレ</label>
-            <div class="seg">
-              <div class="chip on" data-template="portrait">縦</div>
-              <div class="chip" data-template="square">正方形</div>
-              <div class="chip" data-template="landscape">横長</div>
-            </div>
-          </div>
-
-          <div>
-            <label>テーマ</label>
-            <div class="seg">
-              <div class="chip on" data-theme="dark">Dark</div>
-              <div class="chip" data-theme="crimson">Crimson</div>
-              <div class="chip" data-theme="mono">Mono</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="two">
-          <div>
-            <label>UI</label>
-            <div class="seg">
-              <div class="chip on" data-ui="spotify">Spotify風</div>
-              <div class="chip" data-ui="minimal">Minimal</div>
-            </div>
-          </div>
-
-          <div>
-            <label>オプション</label>
-            <div class="seg">
-              <div class="chip on" data-toggle="lyrics">歌詞/メモ ON</div>
-              <div class="chip" data-toggle="frame">キーホルダー枠 OFF</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="two">
-          <div>
-            <label>曲の長さ（秒）</label>
-            <input id="duration" type="number" min="1" inputmode="numeric" />
-          </div>
-          <div>
-            <label>再生位置（秒）</label>
-            <input id="pos" type="number" min="0" inputmode="numeric" />
-          </div>
-        </div>
-
-        <div id="lyricsBlock">
-          <label>歌詞 / メモ（テキスト）</label>
-          <textarea id="lyrics" placeholder="任意。短文のメモでもOK。改行でそれっぽくなる。"></textarea>
-          <div class="hint">※この文章は生成画像には入りません（UIのヒントだけ）。</div>
-        </div>
-
-        <div class="hint">入力は自動保存（localStorage）。次回開いたら復元するよ。</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Preview -->
-  <section class="panel previewCard">
-    <div class="panelInner">
-      <div class="row" style="justify-content:space-between; align-items:flex-end;">
-        <div>
-          <div style="font-weight:900">プレビュー</div>
-          <div class="hint">ここがそのままPNGになる</div>
-        </div>
-        <div class="hint" id="dim">1080 × 1350</div>
-      </div>
-    </div>
+  <div class="panel">
     <canvas id="cvs" width="1080" height="1350"></canvas>
-  </section>
+  </div>
 </div>
 
-<!-- Bottom action bar -->
-<div class="bottomBar">
-  <div class="barInner">
-    <button class="btn" id="render">生成</button>
-    <button class="btn secondary" id="download">PNG保存</button>
-    <button class="btn danger" id="reset">リセット</button>
-  </div>
+<div class="btnbar">
+  <button onclick="render()">生成</button>
+  <button onclick="download()">PNG保存</button>
 </div>
 
 <script>
-  const $ = (id) => document.getElementById(id);
-  const cvs = $("cvs");
-  const ctx = cvs.getContext("2d");
+const cvs = document.getElementById("cvs");
+const ctx = cvs.getContext("2d");
+let coverImg=null;
 
-  let coverImg = null;
+document.getElementById("cover").onchange=e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const img=new Image();
+  img.onload=()=>{coverImg=img;render();}
+  img.src=URL.createObjectURL(f);
+};
 
-  const TEMPLATES = {
-    portrait: { w: 1080, h: 1350 },
-    square:   { w: 1080, h: 1080 },
-    landscape:{ w: 1600, h: 900  }
-  };
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
 
-  // theme affects background + accent (spotify UI uses accent strongly)
-  const THEMES = {
-    dark:    { bg:"#0b1020", ink:"rgba(233,236,255,.96)", muted:"rgba(170,178,213,.92)", accent:"rgba(83,243,166,.92)" },
-    crimson: { bg:"#190812", ink:"rgba(255,240,246,.96)", muted:"rgba(255,200,220,.85)", accent:"rgba(255,90,140,.92)" },
-    mono:    { bg:"#0b0b0f", ink:"rgba(245,245,250,.96)", muted:"rgba(200,205,220,.85)", accent:"rgba(245,245,250,.92)" }
-  };
+function render(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  ctx.fillStyle="#0b1020";
+  ctx.fillRect(0,0,cvs.width,cvs.height);
 
-  let state = {
-    template: "portrait",
-    theme: "dark",
-    ui: "spotify",     // spotify | minimal
-    showLyrics: true,
-    showFrame: false,
-    title: "春雷",
-    artist: "米津玄師",
-    duration: 206,
-    pos: 103,
-    lyrics: "例えば、ここに短文のメモ。\n改行するとそれっぽい。\n（生成画像には注意書き文字は出ない）"
-  };
+  const cardX=90, cardY=120;
+  const cardW=cvs.width-180;
+  const cardH=820;
 
-  const STORAGE_KEY = "music_card_maker_v2";
+  // card
+  ctx.fillStyle="rgba(15,15,20,.85)";
+  roundRect(cardX,cardY,cardW,cardH,40);
+  ctx.fill();
 
-  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-  function formatTime(sec){
-    sec = Math.max(0, Math.floor(sec));
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${String(s).padStart(2,"0")}`;
-  }
+  const centerX = cardX + cardW/2;
 
-  function roundRectPath(ctx, x, y, w, h, r){
-    const rr = Math.min(r, w/2, h/2);
-    ctx.beginPath();
-    ctx.moveTo(x+rr, y);
-    ctx.arcTo(x+w, y, x+w, y+h, rr);
-    ctx.arcTo(x+w, y+h, x, y+h, rr);
-    ctx.arcTo(x, y+h, x, y, rr);
-    ctx.arcTo(x, y, x+w, y, rr);
-    ctx.closePath();
-  }
+  // cover (CENTERED)
+  const coverSize=360;
+  const cx=centerX-coverSize/2;
+  const cy=cardY+60;
 
-  function shadowed(draw){
+  ctx.fillStyle="rgba(255,255,255,.08)";
+  roundRect(cx,cy,coverSize,coverSize,24);
+  ctx.fill();
+
+  if(coverImg){
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,.35)";
-    ctx.shadowBlur = 40;
-    ctx.shadowOffsetY = 18;
-    draw();
-    ctx.restore();
-  }
-
-  function drawEllipsis(text, x, y, maxW){
-    let t = String(text ?? "");
-    if(ctx.measureText(t).width <= maxW){
-      ctx.fillText(t, x, y);
-      return;
-    }
-    const ell = "…";
-    while(t.length > 1 && ctx.measureText(t + ell).width > maxW){
-      t = t.slice(0, -1);
-    }
-    ctx.fillText(t + ell, x, y);
-  }
-
-  function wrapLine(text, maxWidth){
-    if(!text) return [""];
-    const words = text.split(/(\s+)/);
-    let buf = "";
-    const out = [];
-    for(const w of words){
-      const test = buf + w;
-      if(ctx.measureText(test).width > maxWidth && buf.trim().length){
-        out.push(buf.trimEnd());
-        buf = w.trimStart();
-      } else {
-        buf = test;
-      }
-    }
-    out.push(buf.trimEnd());
-    return out;
-  }
-
-  function applyTemplate(){
-    const t = TEMPLATES[state.template];
-    cvs.width = t.w;
-    cvs.height = t.h;
-    $("dim").textContent = `${t.w} × ${t.h}`;
-  }
-
-  function applyThemeCSS(){
-    const th = THEMES[state.theme];
-    document.documentElement.style.setProperty("--bg", th.bg);
-    document.documentElement.style.setProperty("--accent", th.accent);
-  }
-
-  function drawBackground(th){
-    ctx.clearRect(0,0,cvs.width,cvs.height);
-    ctx.fillStyle = th.bg;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    const g1 = ctx.createRadialGradient(cvs.width*0.25, cvs.height*0.12, 10, cvs.width*0.25, cvs.height*0.12, Math.max(cvs.width,cvs.height)*0.75);
-    g1.addColorStop(0, state.theme==="crimson" ? "rgba(255,90,140,.18)" : "rgba(83,243,166,.18)");
-    g1.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g1;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    const g2 = ctx.createRadialGradient(cvs.width*0.85, cvs.height*0.28, 10, cvs.width*0.85, cvs.height*0.28, Math.max(cvs.width,cvs.height)*0.78);
-    g2.addColorStop(0, state.theme==="crimson" ? "rgba(255,200,220,.14)" : "rgba(120,140,255,.18)");
-    g2.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g2;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    const v = ctx.createLinearGradient(0,0,0,cvs.height);
-    v.addColorStop(0,"rgba(0,0,0,.10)");
-    v.addColorStop(1,"rgba(0,0,0,.35)");
-    ctx.fillStyle = v;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-  }
-
-  // Layout depends on template + lyrics ON/OFF
-  function layout(){
-    const W=cvs.width, H=cvs.height;
-    const pad = 70;
-
-    if(state.template==="portrait"){
-      if(state.showLyrics){
-        return {
-          player: { x: pad, y: 80,  w: W-pad*2, h: 620 },
-          lyrics: { x: pad, y: 740, w: W-pad*2, h: H-740-pad }
-        };
-      }
-      // no lyrics => make player taller
-      return {
-        player: { x: pad, y: 110, w: W-pad*2, h: H-110-pad }
-      };
-    }
-
-    if(state.template==="square"){
-      if(state.showLyrics){
-        return {
-          player: { x: pad, y: 70,  w: W-pad*2, h: 520 },
-          lyrics: { x: pad, y: 610, w: W-pad*2, h: H-610-pad }
-        };
-      }
-      return {
-        player: { x: pad, y: 90, w: W-pad*2, h: H-90-pad }
-      };
-    }
-
-    // landscape
-    if(state.showLyrics){
-      const gap = 40;
-      const leftW = Math.floor((W - pad*2 - gap) * 0.52);
-      const rightW = (W - pad*2 - gap) - leftW;
-      return {
-        player: { x: pad, y: 90, w: leftW, h: H-180 },
-        lyrics: { x: pad+leftW+gap, y: 90, w: rightW, h: H-180 }
-      };
-    }
-    return {
-      player: { x: pad, y: 90, w: W-pad*2, h: H-180 }
-    };
-  }
-
-  // UI Styles
-  function getCardStyle(th){
-    // base cards for minimal/spotify
-    if(state.ui === "spotify"){
-      // closer to spotify: darker card, stronger contrast
-      return {
-        card: "rgba(10,10,14,.86)",
-        card2: "rgba(10,10,14,.78)",
-        stroke: "rgba(255,255,255,.08)"
-      };
-    }
-    // minimal: softer
-    return {
-      card: "rgba(18,26,51,.78)",
-      card2: "rgba(18,26,51,.72)",
-      stroke: "rgba(255,255,255,.10)"
-    };
-  }
-
-  function drawCover(img, x,y,w,h){
-    if(!img) return false;
-    const ir = img.width / img.height;
-    const tr = w / h;
-    let sx=0, sy=0, sw=img.width, sh=img.height;
-    if (ir > tr){
-      sh = img.height;
-      sw = sh * tr;
-      sx = (img.width - sw)/2;
-    } else {
-      sw = img.width;
-      sh = sw / tr;
-      sy = (img.height - sh)/2;
-    }
-    ctx.save();
-    roundRectPath(ctx, x,y,w,h, 24);
+    roundRect(cx,cy,coverSize,coverSize,24);
     ctx.clip();
-    ctx.drawImage(img, sx,sy,sw,sh, x,y,w,h);
-    ctx.restore();
-    return true;
-  }
-
-  // Spotify-ish icons
-  function iconPrev(x,y,color){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(10,0); ctx.lineTo(34,16); ctx.lineTo(34,-16); ctx.closePath();
-    ctx.fill();
-    ctx.fillRect(0,-16,8,32);
-    ctx.restore();
-  }
-  function iconNext(x,y,color){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(-10,0); ctx.lineTo(-34,16); ctx.lineTo(-34,-16); ctx.closePath();
-    ctx.fill();
-    ctx.fillRect(0,-16,8,32);
-    ctx.restore();
-  }
-  function iconPlayCircle(x,y,outerColor,innerColor){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.beginPath();
-    ctx.arc(0,0,34,0,Math.PI*2);
-    ctx.fillStyle = outerColor;
-    ctx.fill();
-    ctx.fillStyle = innerColor;
-    ctx.beginPath();
-    ctx.moveTo(-8,-14); ctx.lineTo(16,0); ctx.lineTo(-8,14); ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
-  function iconPlayMinimal(x,y,color){
-    // no circle, small triangle
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(-10,-16); ctx.lineTo(20,0); ctx.lineTo(-10,16); ctx.closePath();
-    ctx.fill();
+    ctx.drawImage(coverImg,cx,cy,coverSize,coverSize);
     ctx.restore();
   }
 
-  function drawPlayerCard(th, box){
-    const cs = getCardStyle(th);
+  // text
+  ctx.textAlign="center";
+  ctx.fillStyle="#fff";
+  ctx.font="bold 40px sans-serif";
+  ctx.fillText(title.value, centerX, cy+coverSize+70);
+  ctx.font="24px sans-serif";
+  ctx.fillStyle="#bbb";
+  ctx.fillText(artist.value, centerX, cy+coverSize+110);
 
-    shadowed(()=>{
-      roundRectPath(ctx, box.x, box.y, box.w, box.h, 34);
-      ctx.fillStyle = cs.card;
-      ctx.fill();
-      ctx.strokeStyle = cs.stroke;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
+  // progress bar (CENTERED)
+  const barW=420;
+  const barY=cy+coverSize+170;
+  ctx.fillStyle="rgba(255,255,255,.2)";
+  roundRect(centerX-barW/2,barY,barW,10,6);
+  ctx.fill();
+  ctx.fillStyle="#53f3a6";
+  roundRect(centerX-barW/2,barY,barW*0.5,10,6);
+  ctx.fill();
 
-    const margin = 46;
+  // play button (CENTERED)
+  ctx.beginPath();
+  ctx.arc(centerX,barY+60,34,0,Math.PI*2);
+  ctx.fillStyle="#53f3a6";
+  ctx.fill();
+  ctx.fillStyle="#000";
+  ctx.beginPath();
+  ctx.moveTo(centerX-8,barY+46);
+  ctx.lineTo(centerX+14,barY+60);
+  ctx.lineTo(centerX-8,barY+74);
+  ctx.closePath();
+  ctx.fill();
 
-    // cover size responsive
-    const coverSize = Math.min(
-      state.template === "landscape" ? 340 : 360,
-      Math.floor(box.w * (state.template === "landscape" ? 0.38 : 0.42))
-    );
-    const cx = box.x + margin;
-    const cy = box.y + margin;
-    const cw = coverSize;
-    const ch = coverSize;
-
-    // cover background
-    shadowed(()=>{
-      roundRectPath(ctx, cx,cy,cw,ch, 24);
-      ctx.fillStyle = "rgba(255,255,255,.06)";
-      ctx.fill();
-    });
-
-    if(!drawCover(coverImg, cx,cy,cw,ch)){
-      ctx.fillStyle = "rgba(255,255,255,.12)";
-      ctx.font = "900 18px ui-sans-serif, system-ui";
-      ctx.textAlign = "center";
-      ctx.fillText("ジャケ写を入れてね", cx+cw/2, cy+ch/2);
-    }
-
-    // Text
-    const tx = cx + cw + 38;
-    const maxTextW = box.x + box.w - tx - 40;
-
-    ctx.textAlign = "left";
-    ctx.fillStyle = th.ink;
-
-    // Spotify UI => smaller, cleaner typography
-    if(state.ui === "spotify"){
-      ctx.font = "900 38px ui-sans-serif, system-ui";
-      drawEllipsis(state.title || "（曲名）", tx, box.y + 118, maxTextW);
-
-      ctx.fillStyle = th.muted;
-      ctx.font = "800 24px ui-sans-serif, system-ui";
-      drawEllipsis(state.artist || "（アーティスト）", tx, box.y + 160, maxTextW);
-    } else {
-      ctx.font = "900 44px ui-sans-serif, system-ui";
-      drawEllipsis(state.title || "（曲名）", tx, box.y + 125, maxTextW);
-
-      ctx.fillStyle = th.muted;
-      ctx.font = "800 26px ui-sans-serif, system-ui";
-      drawEllipsis(state.artist || "（アーティスト）", tx, box.y + 170, maxTextW);
-    }
-
-    // Progress
-    const duration = Math.max(1, Number(state.duration)||1);
-    const pos = clamp(Number(state.pos)||0, 0, duration);
-
-    const barW = Math.min(520, Math.floor(box.w*0.62));
-    const barX = tx;
-    const barY = box.y + box.h - (state.ui === "spotify" ? 175 : 170);
-    const barH = 10;
-
-    ctx.fillStyle = "rgba(255,255,255,.16)";
-    roundRectPath(ctx, barX,barY,barW,barH, 8);
-    ctx.fill();
-
-    const pW = Math.max(8, barW*(pos/duration));
-    ctx.fillStyle = th.accent;
-    roundRectPath(ctx, barX,barY,pW,barH, 8);
-    ctx.fill();
-
-    // knob
-    ctx.beginPath();
-    ctx.arc(barX+pW, barY+barH/2, 12, 0, Math.PI*2);
-    ctx.fillStyle = th.ink;
-    ctx.fill();
-
-    // times
-    ctx.fillStyle = th.muted;
-    ctx.font = "800 18px ui-sans-serif, system-ui";
-    ctx.fillText(formatTime(pos), barX, barY+40);
-    const end = formatTime(duration);
-    const endW = ctx.measureText(end).width;
-    ctx.fillText(end, barX+barW-endW, barY+40);
-
-    // Controls
-    const baseY = box.y + box.h - 92;
-    const centerX = barX + Math.min(barW, 460) * 0.55;
-    const gap = 78;
-
-    if(state.ui === "spotify"){
-      // spotify-style: play button circle with accent fill
-      iconPrev(centerX-gap, baseY, th.muted);
-      iconPlayCircle(centerX, baseY, th.accent, "rgba(0,0,0,.70)");
-      iconNext(centerX+gap, baseY, th.muted);
-    } else {
-      // minimal: simple
-      iconPrev(centerX-gap, baseY, th.muted);
-      iconPlayMinimal(centerX, baseY, th.ink);
-      iconNext(centerX+gap, baseY, th.muted);
-    }
-
-    // little dots
-    ctx.fillStyle = "rgba(170,178,213,.55)";
-    ctx.beginPath(); ctx.arc(barX+40, baseY, 7, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(barX+barW-40, baseY, 7, 0, Math.PI*2); ctx.fill();
-  }
-
-  function drawLyricsCard(th, box){
-    // IMPORTANT: requested to remove "Lyrics/Memo" and note text FROM GENERATED IMAGE
-    // So this card contains only user text.
-
-    const cs = getCardStyle(th);
-
-    shadowed(()=>{
-      roundRectPath(ctx, box.x, box.y, box.w, box.h, 34);
-      ctx.fillStyle = cs.card2;
-      ctx.fill();
-      ctx.strokeStyle = cs.stroke;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-
-    ctx.textAlign = "left";
-    ctx.fillStyle = th.ink;
-    ctx.font = "700 26px ui-sans-serif, system-ui";
-
-    const lines = (state.lyrics || "").split("\n").map(s=>s.trimEnd());
-    const maxLines = state.template==="landscape" ? 20 : 16;
-    const shown = lines.slice(0, maxLines);
-
-    let ty = box.y + 70;  // no header => start higher
-    const lineH = 36;
-    const wrapWidth = box.w - 92;
-
-    for (const ln0 of shown){
-      const wrapped = wrapLine(ln0, wrapWidth);
-      for (const piece of wrapped){
-        ctx.fillText(piece, box.x+46, ty);
-        ty += lineH;
-        if (ty > box.y + box.h - 46) break;
-      }
-      if (ty > box.y + box.h - 46) break;
-    }
-  }
-
-  function drawKeychainFrame(){
-    // Acrylic keychain-like frame overlay (optional)
-    // Purely visual; doesn't affect content.
-    const W = cvs.width, H = cvs.height;
-
-    // outer acrylic
-    ctx.save();
-
-    const inset = Math.round(Math.min(W,H) * 0.03);
-    const x = inset, y = inset, w = W - inset*2, h = H - inset*2;
-    const r = Math.round(Math.min(W,H) * 0.04);
-
-    // acrylic glow
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = Math.max(6, Math.round(Math.min(W,H)*0.008));
-    ctx.strokeStyle = "rgba(255,255,255,.35)";
-    roundRectPath(ctx, x,y,w,h,r);
-    ctx.stroke();
-
-    // inner rim
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
-    ctx.strokeStyle = "rgba(255,255,255,.22)";
-    roundRectPath(ctx, x+18,y+18,w-36,h-36, Math.max(10, r-10));
-    ctx.stroke();
-
-    // top tab + hole (for portrait/square only; landscape looks weird)
-    if(state.template !== "landscape"){
-      const tabW = Math.round(w * 0.34);
-      const tabH = Math.round(h * 0.10);
-      const tabX = x + (w - tabW)/2;
-      const tabY = y - Math.round(tabH * 0.18);
-      const tabR = Math.round(r * 0.75);
-
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = "rgba(255,255,255,.12)";
-      roundRectPath(ctx, tabX, tabY, tabW, tabH, tabR);
-      ctx.fill();
-
-      // hole
-      const holeR = Math.round(Math.min(tabW, tabH) * 0.18);
-      const holeX = tabX + tabW/2;
-      const holeY = tabY + tabH/2;
-      ctx.globalAlpha = 0.85;
-      ctx.beginPath();
-      ctx.arc(holeX, holeY, holeR, 0, Math.PI*2);
-      ctx.fillStyle = "rgba(0,0,0,.35)";
-      ctx.fill();
-
-      ctx.globalAlpha = 0.65;
-      ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
-      ctx.strokeStyle = "rgba(255,255,255,.30)";
-      ctx.beginPath();
-      ctx.arc(holeX, holeY, holeR, 0, Math.PI*2);
-      ctx.stroke();
-
-      // metal ring hint
-      ctx.globalAlpha = 0.6;
-      ctx.lineWidth = Math.max(6, Math.round(Math.min(W,H)*0.008));
-      ctx.strokeStyle = "rgba(220,225,235,.65)";
-      ctx.beginPath();
-      ctx.arc(holeX, holeY - holeR*1.5, holeR*1.4, 0, Math.PI*2);
-      ctx.stroke();
-
-      ctx.globalAlpha = 0.35;
-      ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
-      ctx.strokeStyle = "rgba(0,0,0,.35)";
-      ctx.beginPath();
-      ctx.arc(holeX, holeY - holeR*1.5, holeR*1.4, 0, Math.PI*2);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  function render(){
-    const th = THEMES[state.theme];
-    applyThemeCSS();
-    applyTemplate();
-
-    const boxes = layout();
-
-    drawBackground(th);
-    drawPlayerCard(th, boxes.player);
-    if(state.showLyrics && boxes.lyrics){
-      drawLyricsCard(th, boxes.lyrics);
-    }
-
-    // frame overlay
-    if(state.showFrame){
-      drawKeychainFrame();
-    }
-
-    $("status").textContent = coverImg ? "cover: 読み込みOK" : "cover: 未選択";
-  }
-
-  // ---------- State sync / storage ----------
-  function syncInputsFromState(){
-    $("title").value = state.title ?? "";
-    $("artist").value = state.artist ?? "";
-    $("duration").value = state.duration ?? 180;
-    $("pos").value = state.pos ?? 0;
-    $("lyrics").value = state.lyrics ?? "";
-
-    paintChips("template", state.template);
-    paintChips("theme", state.theme);
-    paintChips("ui", state.ui);
-
-    paintToggle("lyrics", state.showLyrics);
-    paintToggle("frame", state.showFrame);
-
-    $("lyricsBlock").classList.toggle("hidden", !state.showLyrics);
-  }
-
-  function syncStateFromInputs(){
-    state.title = $("title").value.trim();
-    state.artist = $("artist").value.trim();
-    state.duration = Number($("duration").value || 180);
-    state.pos = Number($("pos").value || 0);
-    state.lyrics = $("lyrics").value;
-  }
-
-  function saveState(){
-    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
-  }
-
-  function loadState(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return;
-      const obj = JSON.parse(raw);
-      if(obj && typeof obj === "object"){
-        state = { ...state, ...obj };
-        if(!TEMPLATES[state.template]) state.template = "portrait";
-        if(!THEMES[state.theme]) state.theme = "dark";
-        if(!["spotify","minimal"].includes(state.ui)) state.ui = "spotify";
-        state.showLyrics = !!state.showLyrics;
-        state.showFrame = !!state.showFrame;
-      }
-    }catch(e){}
-  }
-
-  function paintChips(group, value){
-    document.querySelectorAll(`.chip[data-${group}]`).forEach(el=>{
-      el.classList.toggle("on", el.dataset[group] === value);
+  // lyrics (optional)
+  if(lyrics.value.trim()){
+    ctx.fillStyle="#ddd";
+    ctx.font="22px sans-serif";
+    ctx.textAlign="left";
+    const lines=lyrics.value.split("\n");
+    let y=cardY+cardH+40;
+    lines.forEach(l=>{
+      ctx.fillText(l,cardX+40,y);
+      y+=32;
     });
   }
 
-  function paintToggle(name, on){
-    const el = document.querySelector(`.chip[data-toggle="${name}"]`);
-    if(!el) return;
-    el.classList.toggle("on", on);
-    if(name === "lyrics"){
-      el.textContent = on ? "歌詞/メモ ON" : "歌詞/メモ OFF";
-    }
-    if(name === "frame"){
-      el.textContent = on ? "キーホルダー枠 ON" : "キーホルダー枠 OFF";
-    }
-  }
+  // acrylic frame + hole
+  ctx.strokeStyle="rgba(255,255,255,.4)";
+  ctx.lineWidth=6;
+  roundRect(40,40,cvs.width-80,cvs.height-80,50);
+  ctx.stroke();
 
-  // ---------- Events ----------
-  // template chips
-  document.querySelectorAll(".chip[data-template]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      state.template = el.dataset.template;
-      paintChips("template", state.template);
-      saveState();
-      render();
-    });
-  });
+  ctx.beginPath();
+  ctx.arc(cvs.width/2,40,14,0,Math.PI*2);
+  ctx.stroke();
+}
 
-  // theme chips
-  document.querySelectorAll(".chip[data-theme]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      state.theme = el.dataset.theme;
-      paintChips("theme", state.theme);
-      saveState();
-      render();
-    });
-  });
-
-  // UI chips
-  document.querySelectorAll(".chip[data-ui]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      state.ui = el.dataset.ui;
-      paintChips("ui", state.ui);
-      saveState();
-      render();
-    });
-  });
-
-  // toggles
-  document.querySelectorAll(".chip[data-toggle]").forEach(el=>{
-    el.addEventListener("click", ()=>{
-      const name = el.dataset.toggle;
-      if(name === "lyrics"){
-        state.showLyrics = !state.showLyrics;
-        $("lyricsBlock").classList.toggle("hidden", !state.showLyrics);
-        paintToggle("lyrics", state.showLyrics);
-      }
-      if(name === "frame"){
-        state.showFrame = !state.showFrame;
-        paintToggle("frame", state.showFrame);
-      }
-      saveState();
-      render();
-    });
-  });
-
-  // inputs auto-save & re-render
-  const inputs = ["title","artist","duration","pos","lyrics"];
-  let raf = 0;
-  inputs.forEach(id=>{
-    $(id).addEventListener("input", ()=>{
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(()=>{
-        syncStateFromInputs();
-        saveState();
-        render();
-      });
-    });
-  });
-
-  // cover
-  $("cover").addEventListener("change", (e)=>{
-    const file = e.target.files?.[0];
-    if(!file){ coverImg=null; render(); return; }
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = ()=>{
-      coverImg = img;
-      URL.revokeObjectURL(url);
-      render();
-    };
-    img.onerror = ()=>{
-      coverImg = null;
-      render();
-    };
-    img.src = url;
-    $("status").textContent = "cover: 読み込み中…";
-  });
-
-  // buttons
-  $("render").addEventListener("click", ()=>{
-    syncStateFromInputs();
-    saveState();
-    render();
-  });
-
-  $("download").addEventListener("click", ()=>{
-    syncStateFromInputs();
-    saveState();
-    render();
-    const a = document.createElement("a");
-    const safe = (state.title || "music-card").replace(/[\\/:*?"<>|]/g,"_");
-    const opt = [
-      state.template,
-      state.theme,
-      state.ui,
-      state.showLyrics ? "lyrics" : "nolyrics",
-      state.showFrame ? "frame" : "noframe"
-    ].join("_");
-    a.download = `${safe}_${opt}.png`;
-    a.href = cvs.toDataURL("image/png");
-    a.click();
-  });
-
-  $("reset").addEventListener("click", ()=>{
-    state = {
-      template: "portrait",
-      theme: "dark",
-      ui: "spotify",
-      showLyrics: true,
-      showFrame: false,
-      title: "春雷",
-      artist: "米津玄師",
-      duration: 206,
-      pos: 103,
-      lyrics: "例えば、ここに短文のメモ。\n改行するとそれっぽい。"
-    };
-    coverImg = null;
-    $("cover").value = "";
-    saveState();
-    syncInputsFromState();
-    render();
-  });
-
-  // init
-  loadState();
-  syncInputsFromState();
-  applyThemeCSS();
+function download(){
   render();
+  const a=document.createElement("a");
+  a.href=cvs.toDataURL();
+  a.download="music-card.png";
+  a.click();
+}
+
+render();
 </script>
 </body>
 </html>
