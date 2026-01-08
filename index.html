@@ -8,12 +8,9 @@
   <style>
     :root{
       --bg:#0b1020;
-      --card: rgba(18,26,51,.78);
-      --card2: rgba(18,26,51,.72);
       --ink:#e9ecff;
       --muted:#aab2d5;
       --accent:#53f3a6;
-      --border: rgba(255,255,255,.10);
       --shadow: 0 18px 60px rgba(0,0,0,.45);
       --radius: 18px;
       --pad: 14px;
@@ -56,6 +53,7 @@
     }
     .brand b{ font-size: 14px; letter-spacing:.02em; }
     .brand span{ font-size: 11px; color: var(--muted); }
+    .status{ font-size: 12px; color: var(--muted); }
 
     .wrap{
       max-width: 980px;
@@ -99,7 +97,7 @@
       color: var(--muted);
       margin: 0 0 6px;
     }
-    input[type="text"], input[type="number"], textarea, select{
+    input[type="text"], input[type="number"], textarea{
       width: 100%;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.10);
@@ -140,10 +138,13 @@
       cursor:pointer;
       user-select:none;
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing:.01em;
       transition: transform .06s ease, background .2s ease, border-color .2s ease;
       min-height: 40px; /* タップしやすく */
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
     }
     .chip:active{ transform: translateY(1px); }
     .chip.on{
@@ -191,22 +192,6 @@
     .btn.secondary{ background: rgba(255,255,255,.07); font-weight: 800; }
     .btn.danger{ background: rgba(255,80,120,.14); }
 
-    .mini{
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 8px;
-    }
-    .note{
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.05);
-      border: 1px solid rgba(255,255,255,.08);
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-      margin-top: 10px;
-    }
-
     .two{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -216,6 +201,8 @@
       .two{ grid-template-columns: 1fr; }
       .barInner{ grid-template-columns: 1fr; }
     }
+
+    .hidden { display:none !important; }
   </style>
 </head>
 <body>
@@ -224,9 +211,9 @@
   <div class="headInner">
     <div class="brand">
       <b>🎧 Music Card Maker</b>
-      <span>再生画面＋ジャケ写＋歌詞（短文）→ PNG</span>
+      <span>再生画面＋ジャケ写＋（任意で歌詞）→ PNG</span>
     </div>
-    <div class="hint" id="status">cover: 未選択</div>
+    <div class="status" id="status">cover: 未選択</div>
   </div>
 </header>
 
@@ -256,17 +243,36 @@
           <div>
             <label>テンプレ</label>
             <div class="seg">
-              <div class="chip on" data-template="portrait">縦（おすすめ）</div>
+              <div class="chip on" data-template="portrait">縦</div>
               <div class="chip" data-template="square">正方形</div>
               <div class="chip" data-template="landscape">横長</div>
             </div>
           </div>
+
           <div>
             <label>テーマ</label>
             <div class="seg">
               <div class="chip on" data-theme="dark">Dark</div>
               <div class="chip" data-theme="crimson">Crimson</div>
               <div class="chip" data-theme="mono">Mono</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="two">
+          <div>
+            <label>UI</label>
+            <div class="seg">
+              <div class="chip on" data-ui="spotify">Spotify風</div>
+              <div class="chip" data-ui="minimal">Minimal</div>
+            </div>
+          </div>
+
+          <div>
+            <label>オプション</label>
+            <div class="seg">
+              <div class="chip on" data-toggle="lyrics">歌詞/メモ ON</div>
+              <div class="chip" data-toggle="frame">キーホルダー枠 OFF</div>
             </div>
           </div>
         </div>
@@ -282,17 +288,13 @@
           </div>
         </div>
 
-        <div>
+        <div id="lyricsBlock">
           <label>歌詞 / メモ（テキスト）</label>
-          <textarea id="lyrics" placeholder="短い引用 or 自分のメモ推奨。行でそれっぽくなるよ。"></textarea>
-          <div class="hint">共有するなら短文推奨（権利配慮）。</div>
+          <textarea id="lyrics" placeholder="任意。短文のメモでもOK。改行でそれっぽくなる。"></textarea>
+          <div class="hint">※この文章は生成画像には入りません（UIのヒントだけ）。</div>
         </div>
 
-        <div class="note">
-          ⚠️ このツールは「個人利用 / 短い引用 / メモ用途」を想定。歌詞全文の公開・配布は想定してません。
-        </div>
-
-        <div class="mini">入力は自動保存されるよ（次回開いたら復元）。</div>
+        <div class="hint">入力は自動保存（localStorage）。次回開いたら復元するよ。</div>
       </div>
     </div>
   </section>
@@ -323,39 +325,40 @@
 
 <script>
   const $ = (id) => document.getElementById(id);
-
   const cvs = $("cvs");
   const ctx = cvs.getContext("2d");
 
   let coverImg = null;
 
-  // --------- templates & themes ----------
   const TEMPLATES = {
     portrait: { w: 1080, h: 1350 },
     square:   { w: 1080, h: 1080 },
     landscape:{ w: 1600, h: 900  }
   };
 
+  // theme affects background + accent (spotify UI uses accent strongly)
   const THEMES = {
-    dark:    { bg:"#0b1020", card:"rgba(18,26,51,.78)", card2:"rgba(18,26,51,.72)", ink:"rgba(233,236,255,.96)", muted:"rgba(170,178,213,.95)", accent:"rgba(83,243,166,.92)" },
-    crimson: { bg:"#190812", card:"rgba(40,12,24,.70)", card2:"rgba(40,12,24,.62)", ink:"rgba(255,240,246,.96)", muted:"rgba(255,200,220,.85)", accent:"rgba(255,90,140,.92)" },
-    mono:    { bg:"#0b0b0f", card:"rgba(240,240,245,.10)", card2:"rgba(240,240,245,.08)", ink:"rgba(245,245,250,.96)", muted:"rgba(200,205,220,.85)", accent:"rgba(245,245,250,.92)" }
+    dark:    { bg:"#0b1020", ink:"rgba(233,236,255,.96)", muted:"rgba(170,178,213,.92)", accent:"rgba(83,243,166,.92)" },
+    crimson: { bg:"#190812", ink:"rgba(255,240,246,.96)", muted:"rgba(255,200,220,.85)", accent:"rgba(255,90,140,.92)" },
+    mono:    { bg:"#0b0b0f", ink:"rgba(245,245,250,.96)", muted:"rgba(200,205,220,.85)", accent:"rgba(245,245,250,.92)" }
   };
 
   let state = {
     template: "portrait",
     theme: "dark",
+    ui: "spotify",     // spotify | minimal
+    showLyrics: true,
+    showFrame: false,
     title: "春雷",
     artist: "米津玄師",
     duration: 206,
     pos: 103,
-    lyrics: "例えば、ここに短い引用やメモを入れる。\n行でそれっぽくなる。\n（共有するなら短め推奨）"
+    lyrics: "例えば、ここに短文のメモ。\n改行するとそれっぽい。\n（生成画像には注意書き文字は出ない）"
   };
 
-  const STORAGE_KEY = "music_card_maker_v1";
+  const STORAGE_KEY = "music_card_maker_v2";
 
   function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-
   function formatTime(sec){
     sec = Math.max(0, Math.floor(sec));
     const m = Math.floor(sec / 60);
@@ -363,7 +366,7 @@
     return `${m}:${String(s).padStart(2,"0")}`;
   }
 
-  function roundRect(ctx, x, y, w, h, r){
+  function roundRectPath(ctx, x, y, w, h, r){
     const rr = Math.min(r, w/2, h/2);
     ctx.beginPath();
     ctx.moveTo(x+rr, y);
@@ -383,228 +386,22 @@
     ctx.restore();
   }
 
-  function applyTemplate(){
-    const t = TEMPLATES[state.template];
-    cvs.width = t.w;
-    cvs.height = t.h;
-    $("dim").textContent = `${t.w} × ${t.h}`;
-  }
-
-  function applyThemeToCSS(){
-    const th = THEMES[state.theme];
-    document.documentElement.style.setProperty("--bg", th.bg);
-    document.documentElement.style.setProperty("--accent", th.accent);
-    document.documentElement.style.setProperty("--card", th.card);
-    document.documentElement.style.setProperty("--card2", th.card2);
-  }
-
-  function drawBackground(th){
-    ctx.clearRect(0,0,cvs.width,cvs.height);
-
-    // base
-    ctx.fillStyle = th.bg;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    // gradients (theme-aware)
-    const g1 = ctx.createRadialGradient(cvs.width*0.25, cvs.height*0.12, 10, cvs.width*0.25, cvs.height*0.12, Math.max(cvs.width,cvs.height)*0.75);
-    g1.addColorStop(0, state.theme==="crimson" ? "rgba(255,90,140,.18)" : "rgba(83,243,166,.18)");
-    g1.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g1;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    const g2 = ctx.createRadialGradient(cvs.width*0.85, cvs.height*0.28, 10, cvs.width*0.85, cvs.height*0.28, Math.max(cvs.width,cvs.height)*0.78);
-    g2.addColorStop(0, state.theme==="crimson" ? "rgba(255,200,220,.14)" : "rgba(120,140,255,.18)");
-    g2.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = g2;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-
-    // vignette
-    const v = ctx.createLinearGradient(0,0,0,cvs.height);
-    v.addColorStop(0,"rgba(0,0,0,.10)");
-    v.addColorStop(1,"rgba(0,0,0,.35)");
-    ctx.fillStyle = v;
-    ctx.fillRect(0,0,cvs.width,cvs.height);
-  }
-
-  // Layout per template
-  function layout(){
-    const W=cvs.width, H=cvs.height;
-
-    if(state.template==="portrait"){
-      return {
-        player: { x: 70, y: 80,  w: W-140, h: 620 },
-        lyrics: { x: 70, y: 740, w: W-140, h: H-740-70 }
-      };
+  function drawEllipsis(text, x, y, maxW){
+    let t = String(text ?? "");
+    if(ctx.measureText(t).width <= maxW){
+      ctx.fillText(t, x, y);
+      return;
     }
-    if(state.template==="square"){
-      return {
-        player: { x: 70, y: 70,  w: W-140, h: 520 },
-        lyrics: { x: 70, y: 610, w: W-140, h: H-610-70 }
-      };
+    const ell = "…";
+    while(t.length > 1 && ctx.measureText(t + ell).width > maxW){
+      t = t.slice(0, -1);
     }
-    // landscape
-    const pad = 70;
-    const gap = 40;
-    const leftW = Math.floor((W - pad*2 - gap) * 0.52);
-    const rightW = (W - pad*2 - gap) - leftW;
-    return {
-      player: { x: pad, y: 90, w: leftW, h: H-180 },
-      lyrics: { x: pad+leftW+gap, y: 90, w: rightW, h: H-180 }
-    };
-  }
-
-  function drawPlayerCard(th, box){
-    shadowed(()=>{
-      roundRect(ctx, box.x, box.y, box.w, box.h, 34);
-      ctx.fillStyle = th.card;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,.10)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-
-    // cover square (responsive)
-    const margin = 46;
-    const coverSize = Math.min(360, Math.floor(box.w*0.42));
-    const cx = box.x + margin;
-    const cy = box.y + margin;
-    const cw = coverSize;
-    const ch = coverSize;
-
-    shadowed(()=>{
-      roundRect(ctx, cx,cy,cw,ch, 24);
-      ctx.fillStyle = "rgba(0,0,0,.18)";
-      ctx.fill();
-    });
-
-    if (coverImg){
-      const img = coverImg;
-      const ir = img.width / img.height;
-      const tr = cw / ch;
-      let sx=0, sy=0, sw=img.width, sh=img.height;
-      if (ir > tr){
-        sh = img.height;
-        sw = sh * tr;
-        sx = (img.width - sw)/2;
-      } else {
-        sw = img.width;
-        sh = sw / tr;
-        sy = (img.height - sh)/2;
-      }
-      ctx.save();
-      roundRect(ctx, cx,cy,cw,ch, 24);
-      ctx.clip();
-      ctx.drawImage(img, sx,sy,sw,sh, cx,cy,cw,ch);
-      ctx.restore();
-    } else {
-      ctx.fillStyle = "rgba(255,255,255,.12)";
-      ctx.font = "800 18px ui-sans-serif, system-ui";
-      ctx.textAlign = "center";
-      ctx.fillText("ジャケ写を入れてね", cx+cw/2, cy+ch/2);
-    }
-
-    // text area
-    const tx = cx + cw + 38;
-    const maxTextW = box.x + box.w - tx - 40;
-
-    ctx.textAlign = "left";
-    ctx.fillStyle = th.ink;
-    ctx.font = "900 40px ui-sans-serif, system-ui";
-    drawEllipsis(state.title || "（曲名）", tx, box.y + 120, maxTextW);
-
-    ctx.fillStyle = th.muted;
-    ctx.font = "800 24px ui-sans-serif, system-ui";
-    drawEllipsis(state.artist || "（アーティスト）", tx, box.y + 165, maxTextW);
-
-    // progress
-    const duration = Math.max(1, Number(state.duration)||1);
-    const pos = clamp(Number(state.pos)||0, 0, duration);
-
-    const barW = Math.min(520, Math.floor(box.w*0.62));
-    const barX = tx;
-    const barY = box.y + box.h - 170;
-    const barH = 10;
-
-    ctx.fillStyle = "rgba(255,255,255,.18)";
-    roundRect(ctx, barX,barY,barW,barH, 8);
-    ctx.fill();
-
-    const pW = Math.max(8, barW*(pos/duration));
-    ctx.fillStyle = th.accent;
-    roundRect(ctx, barX,barY,pW,barH, 8);
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(barX+pW, barY+barH/2, 12, 0, Math.PI*2);
-    ctx.fillStyle = th.ink;
-    ctx.fill();
-
-    ctx.fillStyle = th.muted;
-    ctx.font = "800 18px ui-sans-serif, system-ui";
-    ctx.fillText(formatTime(pos), barX, barY+40);
-    const end = formatTime(duration);
-    const endW = ctx.measureText(end).width;
-    ctx.fillText(end, barX+barW-endW, barY+40);
-
-    // controls (simple)
-    const baseY = box.y + box.h - 90;
-    const centerX = barX + Math.min(barW, 460) * 0.55;
-    const gap = 78;
-
-    iconPrev(centerX-gap, baseY, th.ink);
-    iconPlay(centerX, baseY, th.ink, th.card);
-    iconNext(centerX+gap, baseY, th.ink);
-
-    // tiny dots for shuffle/repeat
-    ctx.fillStyle = "rgba(170,178,213,.65)";
-    ctx.beginPath(); ctx.arc(barX+40, baseY, 7, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(barX+barW-40, baseY, 7, 0, Math.PI*2); ctx.fill();
-  }
-
-  function drawLyricsCard(th, box){
-    shadowed(()=>{
-      roundRect(ctx, box.x, box.y, box.w, box.h, 34);
-      ctx.fillStyle = th.card2;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,.10)";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-
-    ctx.fillStyle = th.ink;
-    ctx.font = "900 26px ui-sans-serif, system-ui";
-    ctx.textAlign = "left";
-    ctx.fillText("Lyrics / Memo", box.x+46, box.y+72);
-
-    ctx.fillStyle = th.muted;
-    ctx.font = "700 22px ui-sans-serif, system-ui";
-
-    const lines = (state.lyrics || "").split("\n").map(s=>s.trimEnd());
-    const maxLines = state.template==="landscape" ? 18 : 14;
-    const shown = lines.slice(0, maxLines);
-
-    let ty = box.y + 120;
-    const lineH = 34;
-    const wrapWidth = box.w - 92;
-
-    for (const ln0 of shown){
-      const wrapped = wrapLine(ln0, wrapWidth);
-      for (const piece of wrapped){
-        ctx.fillText(piece, box.x+46, ty);
-        ty += lineH;
-        if (ty > box.y + box.h - 66) break;
-      }
-      if (ty > box.y + box.h - 66) break;
-    }
-
-    ctx.fillStyle = "rgba(170,178,213,.60)";
-    ctx.font = "700 16px ui-sans-serif, system-ui";
-    ctx.fillText("※共有する場合は短い引用で（権利配慮）", box.x+46, box.y+box.h-32);
+    ctx.fillText(t + ell, x, y);
   }
 
   function wrapLine(text, maxWidth){
     if(!text) return [""];
-    const words = text.split(/(\s+)/); // keep spaces
+    const words = text.split(/(\s+)/);
     let buf = "";
     const out = [];
     for(const w of words){
@@ -620,19 +417,130 @@
     return out;
   }
 
-  function drawEllipsis(text, x, y, maxW){
-    let t = String(text);
-    if(ctx.measureText(t).width <= maxW){
-      ctx.fillText(t, x, y);
-      return;
-    }
-    const ell = "…";
-    while(t.length > 1 && ctx.measureText(t + ell).width > maxW){
-      t = t.slice(0, -1);
-    }
-    ctx.fillText(t + ell, x, y);
+  function applyTemplate(){
+    const t = TEMPLATES[state.template];
+    cvs.width = t.w;
+    cvs.height = t.h;
+    $("dim").textContent = `${t.w} × ${t.h}`;
   }
 
+  function applyThemeCSS(){
+    const th = THEMES[state.theme];
+    document.documentElement.style.setProperty("--bg", th.bg);
+    document.documentElement.style.setProperty("--accent", th.accent);
+  }
+
+  function drawBackground(th){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    ctx.fillStyle = th.bg;
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+
+    const g1 = ctx.createRadialGradient(cvs.width*0.25, cvs.height*0.12, 10, cvs.width*0.25, cvs.height*0.12, Math.max(cvs.width,cvs.height)*0.75);
+    g1.addColorStop(0, state.theme==="crimson" ? "rgba(255,90,140,.18)" : "rgba(83,243,166,.18)");
+    g1.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g1;
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+
+    const g2 = ctx.createRadialGradient(cvs.width*0.85, cvs.height*0.28, 10, cvs.width*0.85, cvs.height*0.28, Math.max(cvs.width,cvs.height)*0.78);
+    g2.addColorStop(0, state.theme==="crimson" ? "rgba(255,200,220,.14)" : "rgba(120,140,255,.18)");
+    g2.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g2;
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+
+    const v = ctx.createLinearGradient(0,0,0,cvs.height);
+    v.addColorStop(0,"rgba(0,0,0,.10)");
+    v.addColorStop(1,"rgba(0,0,0,.35)");
+    ctx.fillStyle = v;
+    ctx.fillRect(0,0,cvs.width,cvs.height);
+  }
+
+  // Layout depends on template + lyrics ON/OFF
+  function layout(){
+    const W=cvs.width, H=cvs.height;
+    const pad = 70;
+
+    if(state.template==="portrait"){
+      if(state.showLyrics){
+        return {
+          player: { x: pad, y: 80,  w: W-pad*2, h: 620 },
+          lyrics: { x: pad, y: 740, w: W-pad*2, h: H-740-pad }
+        };
+      }
+      // no lyrics => make player taller
+      return {
+        player: { x: pad, y: 110, w: W-pad*2, h: H-110-pad }
+      };
+    }
+
+    if(state.template==="square"){
+      if(state.showLyrics){
+        return {
+          player: { x: pad, y: 70,  w: W-pad*2, h: 520 },
+          lyrics: { x: pad, y: 610, w: W-pad*2, h: H-610-pad }
+        };
+      }
+      return {
+        player: { x: pad, y: 90, w: W-pad*2, h: H-90-pad }
+      };
+    }
+
+    // landscape
+    if(state.showLyrics){
+      const gap = 40;
+      const leftW = Math.floor((W - pad*2 - gap) * 0.52);
+      const rightW = (W - pad*2 - gap) - leftW;
+      return {
+        player: { x: pad, y: 90, w: leftW, h: H-180 },
+        lyrics: { x: pad+leftW+gap, y: 90, w: rightW, h: H-180 }
+      };
+    }
+    return {
+      player: { x: pad, y: 90, w: W-pad*2, h: H-180 }
+    };
+  }
+
+  // UI Styles
+  function getCardStyle(th){
+    // base cards for minimal/spotify
+    if(state.ui === "spotify"){
+      // closer to spotify: darker card, stronger contrast
+      return {
+        card: "rgba(10,10,14,.86)",
+        card2: "rgba(10,10,14,.78)",
+        stroke: "rgba(255,255,255,.08)"
+      };
+    }
+    // minimal: softer
+    return {
+      card: "rgba(18,26,51,.78)",
+      card2: "rgba(18,26,51,.72)",
+      stroke: "rgba(255,255,255,.10)"
+    };
+  }
+
+  function drawCover(img, x,y,w,h){
+    if(!img) return false;
+    const ir = img.width / img.height;
+    const tr = w / h;
+    let sx=0, sy=0, sw=img.width, sh=img.height;
+    if (ir > tr){
+      sh = img.height;
+      sw = sh * tr;
+      sx = (img.width - sw)/2;
+    } else {
+      sw = img.width;
+      sh = sw / tr;
+      sy = (img.height - sh)/2;
+    }
+    ctx.save();
+    roundRectPath(ctx, x,y,w,h, 24);
+    ctx.clip();
+    ctx.drawImage(img, sx,sy,sw,sh, x,y,w,h);
+    ctx.restore();
+    return true;
+  }
+
+  // Spotify-ish icons
   function iconPrev(x,y,color){
     ctx.save();
     ctx.translate(x,y);
@@ -641,19 +549,6 @@
     ctx.moveTo(10,0); ctx.lineTo(34,16); ctx.lineTo(34,-16); ctx.closePath();
     ctx.fill();
     ctx.fillRect(0,-16,8,32);
-    ctx.restore();
-  }
-  function iconPlay(x,y,color,inner){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.beginPath();
-    ctx.arc(0,0,34,0,Math.PI*2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.fillStyle = inner;
-    ctx.beginPath();
-    ctx.moveTo(-8,-14); ctx.lineTo(16,0); ctx.lineTo(-8,14); ctx.closePath();
-    ctx.fill();
     ctx.restore();
   }
   function iconNext(x,y,color){
@@ -666,30 +561,297 @@
     ctx.fillRect(0,-16,8,32);
     ctx.restore();
   }
+  function iconPlayCircle(x,y,outerColor,innerColor){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.beginPath();
+    ctx.arc(0,0,34,0,Math.PI*2);
+    ctx.fillStyle = outerColor;
+    ctx.fill();
+    ctx.fillStyle = innerColor;
+    ctx.beginPath();
+    ctx.moveTo(-8,-14); ctx.lineTo(16,0); ctx.lineTo(-8,14); ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  function iconPlayMinimal(x,y,color){
+    // no circle, small triangle
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(-10,-16); ctx.lineTo(20,0); ctx.lineTo(-10,16); ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawPlayerCard(th, box){
+    const cs = getCardStyle(th);
+
+    shadowed(()=>{
+      roundRectPath(ctx, box.x, box.y, box.w, box.h, 34);
+      ctx.fillStyle = cs.card;
+      ctx.fill();
+      ctx.strokeStyle = cs.stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    const margin = 46;
+
+    // cover size responsive
+    const coverSize = Math.min(
+      state.template === "landscape" ? 340 : 360,
+      Math.floor(box.w * (state.template === "landscape" ? 0.38 : 0.42))
+    );
+    const cx = box.x + margin;
+    const cy = box.y + margin;
+    const cw = coverSize;
+    const ch = coverSize;
+
+    // cover background
+    shadowed(()=>{
+      roundRectPath(ctx, cx,cy,cw,ch, 24);
+      ctx.fillStyle = "rgba(255,255,255,.06)";
+      ctx.fill();
+    });
+
+    if(!drawCover(coverImg, cx,cy,cw,ch)){
+      ctx.fillStyle = "rgba(255,255,255,.12)";
+      ctx.font = "900 18px ui-sans-serif, system-ui";
+      ctx.textAlign = "center";
+      ctx.fillText("ジャケ写を入れてね", cx+cw/2, cy+ch/2);
+    }
+
+    // Text
+    const tx = cx + cw + 38;
+    const maxTextW = box.x + box.w - tx - 40;
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = th.ink;
+
+    // Spotify UI => smaller, cleaner typography
+    if(state.ui === "spotify"){
+      ctx.font = "900 38px ui-sans-serif, system-ui";
+      drawEllipsis(state.title || "（曲名）", tx, box.y + 118, maxTextW);
+
+      ctx.fillStyle = th.muted;
+      ctx.font = "800 24px ui-sans-serif, system-ui";
+      drawEllipsis(state.artist || "（アーティスト）", tx, box.y + 160, maxTextW);
+    } else {
+      ctx.font = "900 44px ui-sans-serif, system-ui";
+      drawEllipsis(state.title || "（曲名）", tx, box.y + 125, maxTextW);
+
+      ctx.fillStyle = th.muted;
+      ctx.font = "800 26px ui-sans-serif, system-ui";
+      drawEllipsis(state.artist || "（アーティスト）", tx, box.y + 170, maxTextW);
+    }
+
+    // Progress
+    const duration = Math.max(1, Number(state.duration)||1);
+    const pos = clamp(Number(state.pos)||0, 0, duration);
+
+    const barW = Math.min(520, Math.floor(box.w*0.62));
+    const barX = tx;
+    const barY = box.y + box.h - (state.ui === "spotify" ? 175 : 170);
+    const barH = 10;
+
+    ctx.fillStyle = "rgba(255,255,255,.16)";
+    roundRectPath(ctx, barX,barY,barW,barH, 8);
+    ctx.fill();
+
+    const pW = Math.max(8, barW*(pos/duration));
+    ctx.fillStyle = th.accent;
+    roundRectPath(ctx, barX,barY,pW,barH, 8);
+    ctx.fill();
+
+    // knob
+    ctx.beginPath();
+    ctx.arc(barX+pW, barY+barH/2, 12, 0, Math.PI*2);
+    ctx.fillStyle = th.ink;
+    ctx.fill();
+
+    // times
+    ctx.fillStyle = th.muted;
+    ctx.font = "800 18px ui-sans-serif, system-ui";
+    ctx.fillText(formatTime(pos), barX, barY+40);
+    const end = formatTime(duration);
+    const endW = ctx.measureText(end).width;
+    ctx.fillText(end, barX+barW-endW, barY+40);
+
+    // Controls
+    const baseY = box.y + box.h - 92;
+    const centerX = barX + Math.min(barW, 460) * 0.55;
+    const gap = 78;
+
+    if(state.ui === "spotify"){
+      // spotify-style: play button circle with accent fill
+      iconPrev(centerX-gap, baseY, th.muted);
+      iconPlayCircle(centerX, baseY, th.accent, "rgba(0,0,0,.70)");
+      iconNext(centerX+gap, baseY, th.muted);
+    } else {
+      // minimal: simple
+      iconPrev(centerX-gap, baseY, th.muted);
+      iconPlayMinimal(centerX, baseY, th.ink);
+      iconNext(centerX+gap, baseY, th.muted);
+    }
+
+    // little dots
+    ctx.fillStyle = "rgba(170,178,213,.55)";
+    ctx.beginPath(); ctx.arc(barX+40, baseY, 7, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(barX+barW-40, baseY, 7, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawLyricsCard(th, box){
+    // IMPORTANT: requested to remove "Lyrics/Memo" and note text FROM GENERATED IMAGE
+    // So this card contains only user text.
+
+    const cs = getCardStyle(th);
+
+    shadowed(()=>{
+      roundRectPath(ctx, box.x, box.y, box.w, box.h, 34);
+      ctx.fillStyle = cs.card2;
+      ctx.fill();
+      ctx.strokeStyle = cs.stroke;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    });
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = th.ink;
+    ctx.font = "700 26px ui-sans-serif, system-ui";
+
+    const lines = (state.lyrics || "").split("\n").map(s=>s.trimEnd());
+    const maxLines = state.template==="landscape" ? 20 : 16;
+    const shown = lines.slice(0, maxLines);
+
+    let ty = box.y + 70;  // no header => start higher
+    const lineH = 36;
+    const wrapWidth = box.w - 92;
+
+    for (const ln0 of shown){
+      const wrapped = wrapLine(ln0, wrapWidth);
+      for (const piece of wrapped){
+        ctx.fillText(piece, box.x+46, ty);
+        ty += lineH;
+        if (ty > box.y + box.h - 46) break;
+      }
+      if (ty > box.y + box.h - 46) break;
+    }
+  }
+
+  function drawKeychainFrame(){
+    // Acrylic keychain-like frame overlay (optional)
+    // Purely visual; doesn't affect content.
+    const W = cvs.width, H = cvs.height;
+
+    // outer acrylic
+    ctx.save();
+
+    const inset = Math.round(Math.min(W,H) * 0.03);
+    const x = inset, y = inset, w = W - inset*2, h = H - inset*2;
+    const r = Math.round(Math.min(W,H) * 0.04);
+
+    // acrylic glow
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = Math.max(6, Math.round(Math.min(W,H)*0.008));
+    ctx.strokeStyle = "rgba(255,255,255,.35)";
+    roundRectPath(ctx, x,y,w,h,r);
+    ctx.stroke();
+
+    // inner rim
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
+    ctx.strokeStyle = "rgba(255,255,255,.22)";
+    roundRectPath(ctx, x+18,y+18,w-36,h-36, Math.max(10, r-10));
+    ctx.stroke();
+
+    // top tab + hole (for portrait/square only; landscape looks weird)
+    if(state.template !== "landscape"){
+      const tabW = Math.round(w * 0.34);
+      const tabH = Math.round(h * 0.10);
+      const tabX = x + (w - tabW)/2;
+      const tabY = y - Math.round(tabH * 0.18);
+      const tabR = Math.round(r * 0.75);
+
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = "rgba(255,255,255,.12)";
+      roundRectPath(ctx, tabX, tabY, tabW, tabH, tabR);
+      ctx.fill();
+
+      // hole
+      const holeR = Math.round(Math.min(tabW, tabH) * 0.18);
+      const holeX = tabX + tabW/2;
+      const holeY = tabY + tabH/2;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(holeX, holeY, holeR, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(0,0,0,.35)";
+      ctx.fill();
+
+      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
+      ctx.strokeStyle = "rgba(255,255,255,.30)";
+      ctx.beginPath();
+      ctx.arc(holeX, holeY, holeR, 0, Math.PI*2);
+      ctx.stroke();
+
+      // metal ring hint
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = Math.max(6, Math.round(Math.min(W,H)*0.008));
+      ctx.strokeStyle = "rgba(220,225,235,.65)";
+      ctx.beginPath();
+      ctx.arc(holeX, holeY - holeR*1.5, holeR*1.4, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = Math.max(3, Math.round(Math.min(W,H)*0.004));
+      ctx.strokeStyle = "rgba(0,0,0,.35)";
+      ctx.beginPath();
+      ctx.arc(holeX, holeY - holeR*1.5, holeR*1.4, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
 
   function render(){
     const th = THEMES[state.theme];
-    applyThemeToCSS();
+    applyThemeCSS();
     applyTemplate();
 
     const boxes = layout();
 
     drawBackground(th);
     drawPlayerCard(th, boxes.player);
-    drawLyricsCard(th, boxes.lyrics);
+    if(state.showLyrics && boxes.lyrics){
+      drawLyricsCard(th, boxes.lyrics);
+    }
+
+    // frame overlay
+    if(state.showFrame){
+      drawKeychainFrame();
+    }
 
     $("status").textContent = coverImg ? "cover: 読み込みOK" : "cover: 未選択";
   }
 
-  // ---------- state sync ----------
+  // ---------- State sync / storage ----------
   function syncInputsFromState(){
     $("title").value = state.title ?? "";
     $("artist").value = state.artist ?? "";
     $("duration").value = state.duration ?? 180;
     $("pos").value = state.pos ?? 0;
     $("lyrics").value = state.lyrics ?? "";
+
     paintChips("template", state.template);
     paintChips("theme", state.theme);
+    paintChips("ui", state.ui);
+
+    paintToggle("lyrics", state.showLyrics);
+    paintToggle("frame", state.showFrame);
+
+    $("lyricsBlock").classList.toggle("hidden", !state.showLyrics);
   }
 
   function syncStateFromInputs(){
@@ -701,9 +863,7 @@
   }
 
   function saveState(){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }catch(e){}
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
   }
 
   function loadState(){
@@ -715,6 +875,9 @@
         state = { ...state, ...obj };
         if(!TEMPLATES[state.template]) state.template = "portrait";
         if(!THEMES[state.theme]) state.theme = "dark";
+        if(!["spotify","minimal"].includes(state.ui)) state.ui = "spotify";
+        state.showLyrics = !!state.showLyrics;
+        state.showFrame = !!state.showFrame;
       }
     }catch(e){}
   }
@@ -725,8 +888,20 @@
     });
   }
 
-  // ---------- events ----------
-  // chips
+  function paintToggle(name, on){
+    const el = document.querySelector(`.chip[data-toggle="${name}"]`);
+    if(!el) return;
+    el.classList.toggle("on", on);
+    if(name === "lyrics"){
+      el.textContent = on ? "歌詞/メモ ON" : "歌詞/メモ OFF";
+    }
+    if(name === "frame"){
+      el.textContent = on ? "キーホルダー枠 ON" : "キーホルダー枠 OFF";
+    }
+  }
+
+  // ---------- Events ----------
+  // template chips
   document.querySelectorAll(".chip[data-template]").forEach(el=>{
     el.addEventListener("click", ()=>{
       state.template = el.dataset.template;
@@ -735,6 +910,8 @@
       render();
     });
   });
+
+  // theme chips
   document.querySelectorAll(".chip[data-theme]").forEach(el=>{
     el.addEventListener("click", ()=>{
       state.theme = el.dataset.theme;
@@ -744,7 +921,35 @@
     });
   });
 
-  // inputs auto-save & re-render (軽めに)
+  // UI chips
+  document.querySelectorAll(".chip[data-ui]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      state.ui = el.dataset.ui;
+      paintChips("ui", state.ui);
+      saveState();
+      render();
+    });
+  });
+
+  // toggles
+  document.querySelectorAll(".chip[data-toggle]").forEach(el=>{
+    el.addEventListener("click", ()=>{
+      const name = el.dataset.toggle;
+      if(name === "lyrics"){
+        state.showLyrics = !state.showLyrics;
+        $("lyricsBlock").classList.toggle("hidden", !state.showLyrics);
+        paintToggle("lyrics", state.showLyrics);
+      }
+      if(name === "frame"){
+        state.showFrame = !state.showFrame;
+        paintToggle("frame", state.showFrame);
+      }
+      saveState();
+      render();
+    });
+  });
+
+  // inputs auto-save & re-render
   const inputs = ["title","artist","duration","pos","lyrics"];
   let raf = 0;
   inputs.forEach(id=>{
@@ -790,7 +995,14 @@
     render();
     const a = document.createElement("a");
     const safe = (state.title || "music-card").replace(/[\\/:*?"<>|]/g,"_");
-    a.download = `${safe}_${state.template}_${state.theme}.png`;
+    const opt = [
+      state.template,
+      state.theme,
+      state.ui,
+      state.showLyrics ? "lyrics" : "nolyrics",
+      state.showFrame ? "frame" : "noframe"
+    ].join("_");
+    a.download = `${safe}_${opt}.png`;
     a.href = cvs.toDataURL("image/png");
     a.click();
   });
@@ -799,11 +1011,14 @@
     state = {
       template: "portrait",
       theme: "dark",
+      ui: "spotify",
+      showLyrics: true,
+      showFrame: false,
       title: "春雷",
       artist: "米津玄師",
       duration: 206,
       pos: 103,
-      lyrics: "例えば、ここに短い引用やメモを入れる。\n行でそれっぽくなる。\n（共有するなら短め推奨）"
+      lyrics: "例えば、ここに短文のメモ。\n改行するとそれっぽい。"
     };
     coverImg = null;
     $("cover").value = "";
@@ -815,7 +1030,7 @@
   // init
   loadState();
   syncInputsFromState();
-  applyThemeToCSS();
+  applyThemeCSS();
   render();
 </script>
 </body>
