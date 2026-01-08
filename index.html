@@ -18,11 +18,11 @@ body{
   font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
   background:var(--bg);
   color:var(--ink);
-  padding-bottom:90px;
+  padding-bottom:96px;
 }
 header{
   position:sticky;top:0;
-  background:rgba(11,16,32,.7);
+  background:rgba(11,16,32,.75);
   backdrop-filter:blur(10px);
   padding:12px 14px;
   z-index:10;
@@ -45,27 +45,38 @@ input,textarea{
 }
 textarea{min-height:120px}
 
+.seg{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.chip{
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.06);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+.chip.on{
+  background:rgba(83,243,166,.2);
+  border-color:rgba(83,243,166,.5);
+}
+
 input[type="range"]{
   -webkit-appearance:none;
   width:100%;
   height:6px;
   border-radius:999px;
   background:rgba(255,255,255,.25);
-  outline:none;
 }
 input[type="range"]::-webkit-slider-thumb{
   -webkit-appearance:none;
   width:22px;height:22px;
   border-radius:50%;
   background:var(--accent);
-  cursor:pointer;
-  border:none;
 }
+
 .timeRow{
-  display:flex;
-  justify-content:space-between;
-  font-size:12px;
-  color:var(--muted);
+  display:flex;justify-content:space-between;
+  font-size:12px;color:var(--muted);
 }
 
 canvas{width:100%;border-radius:18px}
@@ -93,33 +104,54 @@ button{
 <header>🎧 Music Card Maker</header>
 
 <div class="wrap">
-  <div class="panel">
-    <label>曲名</label>
-    <input id="title" value="春雷">
+<div class="panel">
+  <label>曲名</label>
+  <input id="title" value="春雷">
 
-    <label>アーティスト</label>
-    <input id="artist" value="米津玄師">
+  <label>アーティスト</label>
+  <input id="artist" value="米津玄師">
 
-    <label>ジャケ写</label>
-    <input type="file" id="cover" accept="image/*">
+  <label>ジャケ写</label>
+  <input type="file" id="cover" accept="image/*">
 
-    <label>曲の長さ（秒）</label>
-    <input id="duration" type="number" value="206" min="1">
-
-    <label>再生位置</label>
-    <input id="pos" type="range" min="0" value="103">
-    <div class="timeRow">
-      <span id="currentTime">1:43</span>
-      <span id="totalTime">3:26</span>
-    </div>
-
-    <label>歌詞 / メモ（任意）</label>
-    <textarea id="lyrics">短いフレーズやメモ。</textarea>
+  <label>テーマ</label>
+  <div class="seg">
+    <div class="chip on" data-theme="dark">Dark</div>
+    <div class="chip" data-theme="crimson">Crimson</div>
+    <div class="chip" data-theme="mono">Mono</div>
   </div>
 
-  <div class="panel">
-    <canvas id="cvs" width="1080" height="1350"></canvas>
+  <label>UI</label>
+  <div class="seg">
+    <div class="chip on" data-ui="spotify">Spotify風</div>
+    <div class="chip" data-ui="minimal">Minimal</div>
   </div>
+
+  <label>オプション</label>
+  <div class="seg">
+    <div class="chip on" id="toggleLyrics">歌詞 ON</div>
+    <div class="chip" id="toggleFrame">枠 OFF</div>
+  </div>
+
+  <label>曲の長さ（秒）</label>
+  <input id="duration" type="number" value="206">
+
+  <label>再生位置</label>
+  <input id="pos" type="range" min="0" value="103">
+  <div class="timeRow">
+    <span id="cur">1:43</span>
+    <span id="tot">3:26</span>
+  </div>
+
+  <div id="lyricsBox">
+    <label>歌詞 / メモ</label>
+    <textarea id="lyrics">短いメモや引用。</textarea>
+  </div>
+</div>
+
+<div class="panel">
+  <canvas id="cvs" width="1080" height="1350"></canvas>
+</div>
 </div>
 
 <div class="btnbar">
@@ -128,38 +160,64 @@ button{
 </div>
 
 <script>
-const cvs = document.getElementById("cvs");
-const ctx = cvs.getContext("2d");
+const cvs=cvsEl=document.getElementById("cvs");
+const ctx=cvs.getContext("2d");
 let coverImg=null;
 
-const posEl = document.getElementById("pos");
-const durEl = document.getElementById("duration");
+let state={
+  theme:"dark",
+  ui:"spotify",
+  lyrics:true,
+  frame:false
+};
 
-function fmt(sec){
-  sec=Math.max(0,Math.floor(sec));
-  return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0");
+const themes={
+  dark:{bg:"#0b1020",accent:"#53f3a6"},
+  crimson:{bg:"#190812",accent:"#ff5a8c"},
+  mono:{bg:"#0b0b0f",accent:"#fff"}
+};
+
+function fmt(s){s=Math.floor(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0")}
+
+document.querySelectorAll("[data-theme]").forEach(b=>{
+  b.onclick=()=>{state.theme=b.dataset.theme;setChips("theme");render()}
+});
+document.querySelectorAll("[data-ui]").forEach(b=>{
+  b.onclick=()=>{state.ui=b.dataset.ui;setChips("ui");render()}
+});
+
+toggleLyrics.onclick=()=>{
+  state.lyrics=!state.lyrics;
+  toggleLyrics.textContent=state.lyrics?"歌詞 ON":"歌詞 OFF";
+  toggleLyrics.classList.toggle("on",state.lyrics);
+  lyricsBox.style.display=state.lyrics?"block":"none";
+  render();
+};
+toggleFrame.onclick=()=>{
+  state.frame=!state.frame;
+  toggleFrame.textContent=state.frame?"枠 ON":"枠 OFF";
+  toggleFrame.classList.toggle("on",state.frame);
+  render();
+};
+
+function setChips(type){
+  document.querySelectorAll(`[data-${type}]`).forEach(b=>{
+    b.classList.toggle("on",b.dataset[type]===state[type]);
+  });
 }
 
-document.getElementById("cover").onchange=e=>{
+cover.onchange=e=>{
   const f=e.target.files[0];
   if(!f)return;
   const img=new Image();
-  img.onload=()=>{coverImg=img;render();}
+  img.onload=()=>{coverImg=img;render()};
   img.src=URL.createObjectURL(f);
 };
 
-durEl.oninput=()=>{
-  posEl.max=durEl.value;
-  document.getElementById("totalTime").textContent=fmt(durEl.value);
-  render();
-};
+duration.oninput=()=>{pos.max=duration.value;tot.textContent=fmt(duration.value);render()}
+pos.oninput=()=>{cur.textContent=fmt(pos.value);render()}
 
-posEl.oninput=()=>{
-  document.getElementById("currentTime").textContent=fmt(posEl.value);
-  render();
-};
-
-function roundRect(x,y,w,h,r){
+function rr(x,y,w,h,r){
   ctx.beginPath();
   ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r);
@@ -170,85 +228,71 @@ function roundRect(x,y,w,h,r){
 }
 
 function render(){
+  const th=themes[state.theme];
+  document.documentElement.style.setProperty("--bg",th.bg);
+  document.documentElement.style.setProperty("--accent",th.accent);
+
   ctx.clearRect(0,0,cvs.width,cvs.height);
-  ctx.fillStyle="#0b1020";
+  ctx.fillStyle=th.bg;
   ctx.fillRect(0,0,cvs.width,cvs.height);
 
-  const cardX=90, cardY=120;
-  const cardW=cvs.width-180;
-  const cardH=820;
-  const centerX=cardX+cardW/2;
+  const cx=90,cy=120,cw=cvs.width-180,ch=820;
+  const mid=cx+cw/2;
 
   ctx.fillStyle="rgba(15,15,20,.85)";
-  roundRect(cardX,cardY,cardW,cardH,40);
-  ctx.fill();
+  rr(cx,cy,cw,ch,40);ctx.fill();
 
-  const coverSize=360;
-  const cx=centerX-coverSize/2;
-  const cy=cardY+60;
-
-  roundRect(cx,cy,coverSize,coverSize,24);
-  ctx.fillStyle="rgba(255,255,255,.08)";
-  ctx.fill();
+  const cs=360;
+  const ix=mid-cs/2,iy=cy+60;
+  rr(ix,iy,cs,cs,24);
+  ctx.fillStyle="rgba(255,255,255,.08)";ctx.fill();
 
   if(coverImg){
-    ctx.save();
-    roundRect(cx,cy,coverSize,coverSize,24);
-    ctx.clip();
-    ctx.drawImage(coverImg,cx,cy,coverSize,coverSize);
-    ctx.restore();
+    ctx.save();rr(ix,iy,cs,cs,24);ctx.clip();
+    ctx.drawImage(coverImg,ix,iy,cs,cs);ctx.restore();
   }
 
   ctx.textAlign="center";
   ctx.fillStyle="#fff";
-  ctx.font="bold 40px sans-serif";
-  ctx.fillText(title.value, centerX, cy+coverSize+70);
-  ctx.font="24px sans-serif";
+  ctx.font=state.ui==="spotify"?"bold 36px sans-serif":"bold 42px sans-serif";
+  ctx.fillText(title.value,mid,iy+cs+70);
   ctx.fillStyle="#bbb";
-  ctx.fillText(artist.value, centerX, cy+coverSize+110);
+  ctx.font="24px sans-serif";
+  ctx.fillText(artist.value,mid,iy+cs+110);
 
-  const barW=420;
-  const barY=cy+coverSize+170;
-  const ratio=posEl.value/durEl.value;
-
-  ctx.fillStyle="rgba(255,255,255,.25)";
-  roundRect(centerX-barW/2,barY,barW,10,6);
-  ctx.fill();
-  ctx.fillStyle="#53f3a6";
-  roundRect(centerX-barW/2,barY,barW*ratio,10,6);
-  ctx.fill();
+  const bw=420,by=iy+cs+170,ratio=pos.value/duration.value;
+  rr(mid-bw/2,by,bw,10,6);
+  ctx.fillStyle="rgba(255,255,255,.25)";ctx.fill();
+  rr(mid-bw/2,by,bw*ratio,10,6);
+  ctx.fillStyle=th.accent;ctx.fill();
 
   ctx.beginPath();
-  ctx.arc(centerX,barY+60,34,0,Math.PI*2);
-  ctx.fillStyle="#53f3a6";
-  ctx.fill();
+  ctx.arc(mid,by+60,34,0,Math.PI*2);
+  ctx.fillStyle=th.accent;ctx.fill();
   ctx.fillStyle="#000";
   ctx.beginPath();
-  ctx.moveTo(centerX-8,barY+46);
-  ctx.lineTo(centerX+14,barY+60);
-  ctx.lineTo(centerX-8,barY+74);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(mid-8,by+46);
+  ctx.lineTo(mid+14,by+60);
+  ctx.lineTo(mid-8,by+74);
+  ctx.closePath();ctx.fill();
 
-  if(lyrics.value.trim()){
+  if(state.lyrics && lyrics.value.trim()){
     ctx.fillStyle="#ddd";
     ctx.font="22px sans-serif";
     ctx.textAlign="left";
-    let y=cardY+cardH+40;
-    lyrics.value.split("\n").forEach(l=>{
-      ctx.fillText(l,cardX+40,y);
-      y+=32;
-    });
+    let y=cy+ch+40;
+    lyrics.value.split("\n").forEach(l=>{ctx.fillText(l,cx+40,y);y+=32});
   }
 
-  ctx.strokeStyle="rgba(255,255,255,.4)";
-  ctx.lineWidth=6;
-  roundRect(40,40,cvs.width-80,cvs.height-80,50);
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cvs.width/2,40,14,0,Math.PI*2);
-  ctx.stroke();
+  if(state.frame){
+    ctx.strokeStyle="rgba(255,255,255,.4)";
+    ctx.lineWidth=6;
+    rr(40,40,cvs.width-80,cvs.height-80,50);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cvs.width/2,40,14,0,Math.PI*2);
+    ctx.stroke();
+  }
 }
 
 function download(){
@@ -259,8 +303,8 @@ function download(){
   a.click();
 }
 
-durEl.oninput();
-posEl.oninput();
+duration.oninput();
+pos.oninput();
 render();
 </script>
 </body>
